@@ -341,12 +341,13 @@ Main = (function()
 	end
 
 	Main.Error = function(str)
-		if rconsoleprint then
-			rconsoleprint("DEX ERROR: "..tostring(str).."\n")
-			wait(9e9)
+		local message = "DEX ERROR: " .. tostring(str)
+		if type(rconsoleprint) == "function" then
+			pcall(rconsoleprint, message .. "\n")
 		else
-			error(str)
+			warn(message)
 		end
+		error(message, 2)
 	end
 
 	Main.LoadModule = function(name)
@@ -354,7 +355,11 @@ Main = (function()
 			local control
 
 			if EmbeddedModules then -- Offline Modules
-				control = EmbeddedModules[name]()
+				local moduleLoader = EmbeddedModules[name]
+				if type(moduleLoader) ~= "function" then
+					error("Missing embedded module: " .. tostring(name), 2)
+				end
+				control = moduleLoader()
 
 				-- TODO: Remove when open source
 				if gethsfuncs then
@@ -393,10 +398,20 @@ Main = (function()
 				end
 			end
 
+			if type(control) ~= "table"
+				or type(control.InitDeps) ~= "function"
+				or type(control.Main) ~= "function"
+				or type(control.InitAfterMain) ~= "function" then
+				error("Invalid module controller for " .. tostring(name), 2)
+			end
+
 			Main.AppControls[name] = control
 			control.InitDeps(Main.GetInitDeps())
 
 			local moduleData = control.Main()
+			if moduleData == nil then
+				error("Module " .. tostring(name) .. " returned no app data", 2)
+			end
 			Apps[name] = moduleData
 			return moduleData
 		else
@@ -404,10 +419,20 @@ Main = (function()
 			if not module then Main.Error("CANNOT FIND MODULE "..name) end
 
 			local control = require(module)
+			if type(control) ~= "table"
+				or type(control.InitDeps) ~= "function"
+				or type(control.Main) ~= "function"
+				or type(control.InitAfterMain) ~= "function" then
+				error("Invalid module controller for " .. tostring(name), 2)
+			end
+
 			Main.AppControls[name] = control
 			control.InitDeps(Main.GetInitDeps())
 
 			local moduleData = control.Main()
+			if moduleData == nil then
+				error("Module " .. tostring(name) .. " returned no app data", 2)
+			end
 			Apps[name] = moduleData
 			return moduleData
 		end
@@ -435,15 +460,46 @@ Main = (function()
 		end
 	end
 
-	Main.LoadModules = function()
-		for i,v in pairs(Main.ModuleList) do
-			local s,e = pcall(Main.LoadModule,v)
-			if not s then
-				Main.Error("FAILED LOADING " .. v .. " CAUSE " .. e)
+	Main.LoadModules = function(onProgress)
+		local failures = {}
+		local moduleCount = #Main.ModuleList
+		Main.ModuleLoadTimings = {}
+
+		local function addFailure(stage, name, reason)
+			local message = ("%s %s failed: %s"):format(stage, tostring(name), tostring(reason))
+			table.insert(failures, message)
+			warn("[Dex++] " .. message)
+		end
+
+		local function reportProgress(stage, name, index, total)
+			if type(onProgress) == "function" then
+				local ok, err = pcall(onProgress, stage, name, index, total)
+				if not ok then
+					warn("[Dex++] Progress callback failed: " .. tostring(err))
+				end
+			end
+
+			if Lib and type(Lib.FastWait) == "function" then
+				Lib.FastWait()
 			end
 		end
 
-		-- Init Major Apps and define them in modules
+		for index, name in ipairs(Main.ModuleList) do
+			reportProgress("Loading", name, index, moduleCount)
+
+			local startedAt = os.clock()
+			local ok, result = pcall(Main.LoadModule, name)
+			local elapsed = os.clock() - startedAt
+			Main.ModuleLoadTimings[name] = elapsed
+
+			if not ok then
+				addFailure("Loading module", name, result)
+			elseif elapsed >= 2 then
+				warn(("[Dex++] Module %s took %.2fs to load"):format(name, elapsed))
+			end
+		end
+
+		-- Init Major Apps and define them in modules.
 		Explorer = Apps.Explorer
 		Properties = Apps.Properties
 		ScriptViewer = Apps.ScriptViewer
@@ -452,9 +508,7 @@ Main = (function()
 		ModelViewer = Apps.ModelViewer
 		Notebook = Apps.Notebook
 		SettingsWindow = Apps.SettingsWindow
-		
-		
-		--SecretServicePanel = Apps.SecretServicePanel
+
 		local appTable = {
 			Explorer = Explorer,
 			Properties = Properties,
@@ -464,17 +518,39 @@ Main = (function()
 			ModelViewer = ModelViewer,
 			Notebook = Notebook,
 			SettingsWindow = SettingsWindow
-			--SecretServicePanel = SecretServicePanel,
 		}
-		
-		
 
-		Main.AppControls.Lib.InitAfterMain(appTable)
-		for i,v in pairs(Main.ModuleList) do
-			local control = Main.AppControls[v]
-			if control then
-				control.InitAfterMain(appTable)
+		local totalLinkSteps = moduleCount + 1
+		reportProgress("Linking", "Lib", 1, totalLinkSteps)
+
+		local libControl = Main.AppControls.Lib
+		if libControl and type(libControl.InitAfterMain) == "function" then
+			local ok, err = pcall(libControl.InitAfterMain, appTable)
+			if not ok then
+				addFailure("Linking module", "Lib", err)
 			end
+		else
+			addFailure("Linking module", "Lib", "missing InitAfterMain callback")
+		end
+
+		for index, name in ipairs(Main.ModuleList) do
+			local control = Main.AppControls[name]
+			if control then
+				reportProgress("Linking", name, index + 1, totalLinkSteps)
+
+				local ok, err = pcall(control.InitAfterMain, appTable)
+				if not ok then
+					addFailure("Linking module", name, err)
+				end
+			end
+		end
+
+		if #failures > 0 then
+			error(
+				"Dex++ startup failed while loading/linking modules:\n"
+					.. table.concat(failures, "\n"),
+				2
+			)
 		end
 	end
 
@@ -1640,7 +1716,20 @@ Main = (function()
 		-- Load other modules
 		intro.SetProgress("Loading Modules",0.75)
 		Main.AppControls.Lib.InitDeps(Main.GetInitDeps()) -- Missing deps now available
-		Main.LoadModules()
+		Main.LoadModules(function(stage, name, index, total)
+			local fraction = index / math.max(total, 1)
+			local progress
+			if stage == "Loading" then
+				progress = 0.75 + fraction * 0.03
+			else
+				progress = 0.78 + fraction * 0.015
+			end
+
+			intro.SetProgress(
+				("%s Module (%d/%d): %s"):format(stage, index, total, name),
+				progress
+			)
+		end)
 		Lib.FastWait()
 
 		-- Init other modules
