@@ -5,9 +5,9 @@ Dex++ is an extended version of Moon's Dex, made to fulfill some Moon's Dex prop
 
 ## Latest Version Script
 ```lua
-loadstring(game:HttpGet("https://github.com/AZYsGithub/DexPlusPlus/releases/latest/download/out.lua"))()
+loadstring(game:HttpGet("https://github.com/finalcircuitgame-crypto/DexPlusPlus/releases/latest/download/out.lua"))()
 ```
-For specific versions, go to [releases](https://github.com/AZYsGithub/DexPlusPlus/releases).
+For specific versions, go to [releases](https://github.com/finalcircuitgame-crypto/DexPlusPlus/releases).
 
 ## What's the difference between Dex and Dex++?
 Since the original Dex is the last release and Moon have discontinued it, it still has some missing features.
