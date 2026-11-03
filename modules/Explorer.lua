@@ -38,7 +38,6 @@ local function main()
 	local expanded
 	local entryTemplate,treeFrame,toolBar,descendantAddedCon,descendantRemovingCon,itemChangedCon
 	local ffa = game.FindFirstAncestorWhichIsA
-	local getDescendants = game.GetDescendants
 	local getTextSize = service.TextService.GetTextSize
 	local updateDebounce,refreshDebounce = false,false
 	local nilNode = {Obj = Instance.new("Folder")}
@@ -54,6 +53,67 @@ local function main()
 	local iconData
 	local remote_blocklist = {} -- list of remotes beng blocked, k = the remote instance, v = their old function :3
 	nodes = nodes or {}
+
+	-- Walk descendants incrementally instead of materializing one huge
+	-- GetDescendants array and processing the entire game in one frame.
+	local function indexDescendants(rootNode, markAsNil, onProgress)
+		local pending = {{Obj = rootNode.Obj, Node = rootNode}}
+		local cursor, indexedCount = 1, 0
+
+		while cursor <= #pending do
+			local current = pending[cursor]
+			cursor += 1
+
+			-- The root may have been removed while a yielded scan was running.
+			if nodes[current.Obj] ~= current.Node then
+				continue
+			end
+
+			local ok, children = pcall(current.Obj.GetChildren, current.Obj)
+			if ok then
+				for _, obj in ipairs(children) do
+					if nodes[obj] or obj.Parent ~= current.Obj then
+						continue
+					end
+
+					local childNode = {Obj = obj, Parent = current.Node}
+					nodes[obj] = childNode
+					current.Node[#current.Node + 1] = childNode
+					current.Node.Sorted = nil
+
+					if markAsNil then
+						nilMap[obj] = true
+						nilCons[obj] = nilCons[obj] or {
+							connectSignal(obj.ChildAdded, addObject),
+							connectSignal(obj.AncestryChanged, moveObject),
+						}
+					end
+
+					pending[#pending + 1] = {Obj = obj, Node = childNode}
+					indexedCount += 1
+
+					if indexedCount % 200 == 0 then
+						if onProgress then
+							local progressOk, progressError = pcall(onProgress, indexedCount, false)
+							if not progressOk then
+								warn("[Dex++] Instance indexing progress callback failed: " .. tostring(progressError))
+							end
+						end
+						task.wait()
+					end
+				end
+			end
+		end
+
+		if onProgress then
+			local progressOk, progressError = pcall(onProgress, indexedCount, true)
+			if not progressOk then
+				warn("[Dex++] Instance indexing progress callback failed: " .. tostring(progressError))
+			end
+		end
+
+		return indexedCount
+	end
 
 	addObject = function(root)
 		if nodes[root] then return end
@@ -119,26 +179,7 @@ local function main()
 			par.Sorted = nil
 		end
 
-		local insts = getDescendants(root)
-		for i = 1,#insts do
-			local obj = insts[i]
-			if nodes[obj] then continue end -- Deferred
-
-			local par = nodes[ffa(obj,"Instance")]
-			if not par then continue end
-			local newNode = {Obj = obj, Parent = par}
-			nodes[obj] = newNode
-			par[#par+1] = newNode
-
-			-- Nil Handling
-			if isNil then
-				nilMap[obj] = true
-				nilCons[obj] = nilCons[obj] or {
-					connectSignal(obj.ChildAdded,addObject),
-					connectSignal(obj.AncestryChanged,moveObject),
-				}
-			end
-		end
+		indexDescendants(newNode, isNil)
 
 		if searchFunc and autoUpdateSearch then
 			searchFunc({newNode})
@@ -2447,7 +2488,7 @@ return search]==]
 		end
 	end
 
-	Explorer.Init = function()
+	Explorer.Init = function(onProgress)
 		Explorer.LegacyClassIcons = Lib.IconMap.newLinear("rbxasset://textures/ClassImages.PNG", 16,16)
 		if Settings.ClassIcon ~= nil and Settings.ClassIcon ~= "Old" then
 			iconData = Lib.IconMap.getIconDataFromName(Settings.ClassIcon)
@@ -2576,33 +2617,7 @@ return search]==]
 
 		Explorer.SetupConnections()
 
-		local insts = getDescendants(game)
-		if Main.Elevated then
-			for i = 1,#insts do
-				local obj = insts[i]
-				local par = nodes[ffa(obj,"Instance")]
-				if not par then continue end
-				local newNode = {
-					Obj = obj,
-					Parent = par,
-				}
-				nodes[obj] = newNode
-				par[#par+1] = newNode
-			end
-		else
-			for i = 1,#insts do
-				local obj = insts[i]
-				local s,parObj = pcall(ffa,obj,"Instance")
-				local par = nodes[parObj]
-				if not par then continue end
-				local newNode = {
-					Obj = obj,
-					Parent = par,
-				}
-				nodes[obj] = newNode
-				par[#par+1] = newNode
-			end
-		end
+		indexDescendants(nodes[game], false, onProgress)
 	end
 
 	return Explorer
