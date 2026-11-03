@@ -147,6 +147,26 @@ local service = setmetatable({},{__index = function(self,name)
 end})
 local plr = service.Players.LocalPlayer or service.Players.PlayerAdded:wait()
 
+local function assignProperty(instance, property, value)
+	-- Older Dex UI definitions store EnumItem.Value as a number.
+	-- Convert it using the property's actual Enum type before assigning.
+	if type(value) == "number" then
+		local success, currentValue = pcall(function()
+			return instance[property]
+		end)
+		if success and typeof(currentValue) == "EnumItem" then
+			for _, enumItem in ipairs(currentValue.EnumType:GetEnumItems()) do
+				if enumItem.Value == value then
+					value = enumItem
+					break
+				end
+			end
+		end
+	end
+
+	instance[property] = value
+end
+
 local create = function(data)
 	local insts = {}
 	for i,v in pairs(data) do insts[v[1]] = Instance.new(v[2]) end
@@ -156,7 +176,7 @@ local create = function(data)
 			if type(val) == "table" then
 				insts[v[1]][prop] = insts[val[1]]
 			else
-				insts[v[1]][prop] = val
+				assignProperty(insts[v[1]], prop, val)
 			end
 		end
 	end
@@ -167,7 +187,7 @@ end
 local createSimple = function(class,props)
 	local inst = Instance.new(class)
 	for i,v in next,props do
-		inst[i] = v
+		assignProperty(inst, i, v)
 	end
 	return inst
 end
