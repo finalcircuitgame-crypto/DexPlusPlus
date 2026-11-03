@@ -196,7 +196,7 @@ local function main()
 	end
 	
 	SettingsWindow.ReloadPrompt = function()		
-		local win = ScriptViewer.ReloadPromptWindow
+		local win = SettingsWindow.ReloadPromptWindow
 		if not win then
 			win = Lib.Window.new()
 			win.Alignable = false
@@ -248,7 +248,7 @@ local function main()
 		ListFrame.Parent = window.GuiElems.Content
 		ListFrame.Size = UDim2.new(1, 0,1, -20)
 		ListFrame.Position = UDim2.new(0, 0, 0, 0)
-		ListFrame.Transparency = 1
+		ListFrame.BackgroundTransparency = 1
 		ListFrame.CanvasSize = UDim2.new(0,0,0,0)
 		ListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		ListFrame.ScrollBarThickness = 16
@@ -295,7 +295,12 @@ local function main()
 		
 		local bgTransparency = AddTextbox("Background Transparency", tostring(Settings.Window.Transparency), 15)
 		bgTransparency.FocusLost:Connect(function()
-			Settings.Window.Transparency = tonumber(bgTransparency.Text)
+			local value = tonumber(bgTransparency.Text)
+			if value and value == value and value ~= math.huge then
+				Settings.Window.Transparency = math.clamp(value, 0, 1)
+			else
+				bgTransparency.Text = tostring(Settings.Window.Transparency)
+			end
 		end)
 		
 		local classIcon = AddDropdown("Class Icons", {"Old", "NewDark", "Vanilla3"}, Settings.ClassIcon, false, 100)
@@ -361,12 +366,12 @@ local function main()
 		ShinyPort.FocusLost:Connect(function()
 			local portinput = tonumber(ShinyPort.Text)
 			if not portinput then
-				ShinyPort.Text = Settings.Decompiler.ShinyDecompilerPort
+				ShinyPort.Text = tostring(Settings.Decompiler.ShinyDecompilerPort)
 			else
 				if portinput > 0 and portinput <= 65535 then
 					Settings.Decompiler.ShinyDecompilerPort = portinput
 				else
-					ShinyPort.Text = Settings.Decompiler.ShinyDecompilerPort
+					ShinyPort.Text = tostring(Settings.Decompiler.ShinyDecompilerPort)
 				end
 			end
 		end)
@@ -393,7 +398,7 @@ local function main()
 		reloadButton.Parent = BackgroundreloadButton.Gui
 		reloadButton.Size = UDim2.new(1,0, 1,0)
 		reloadButton.Position = UDim2.new(0,0, 0,0)
-		reloadButton.Transparency = 1
+		reloadButton.BackgroundTransparency = 1
 		
 		reloadButton.MouseButton1Click:Connect(function()
 			window:SetTitle("Settings - Saving")
