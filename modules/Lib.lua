@@ -34,8 +34,6 @@ end
 local function main()
 	local Lib = {}
 
-	local renderStepped = service.RunService.RenderStepped
-	local signalWait = renderStepped.wait
 	local PH = newproxy() -- Placeholder, must be replaced in constructor
 	local SIGNAL = newproxy()
 
@@ -278,10 +276,13 @@ local function main()
 		return func()
 	end)()
 
+	-- Do not wait on RenderStepped for startup scheduling. RenderStepped
+	-- may stop advancing while the client is backgrounded or rendering is stalled.
+	-- task.wait yields to the scheduler without depending on a rendered frame.
 	Lib.FastWait = function(s)
-		if not s then return signalWait(renderStepped) end
-		local start = tick()
-		while tick() - start < s do signalWait(renderStepped) end
+		if not s then return task.wait() end
+		if s <= 0 then return end
+		return task.wait(s)
 	end
 
 	Lib.ButtonAnim = function(button,data)
@@ -437,7 +438,7 @@ local function main()
 	end
 
 	Lib.DeferFunc = function(f,...)
-		signalWait(renderStepped)
+		task.wait()
 		return f(...)
 	end
 
