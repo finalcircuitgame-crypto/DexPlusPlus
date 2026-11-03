@@ -537,7 +537,7 @@ Main = (function()
 		end
 		
 		env.parsefile = function(name)
-			return tostring(name):gsub("[*\\?:<>|]+", ""):sub(1, 175)
+			return tostring(name):gsub("[*\\/:<>|\"?]+", ""):sub(1, 175)
 		end
 
 		-- debug
