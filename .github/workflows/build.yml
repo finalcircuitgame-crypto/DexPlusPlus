@@ -1,0 +1,55 @@
+name: Build Dex++
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "build.py"
+      - "header.lua"
+      - "main.lua"
+      - "modules/**"
+      - ".github/workflows/build.yml"
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build out.lua
+        run: python build.py
+
+      - name: Verify generated bundle
+        run: python build.py --check
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dexplusplus-out-${{ github.sha }}
+          path: out.lua
+          if-no-files-found: error
+
+      - name: Attach out.lua to published release
+        if: github.event_name == 'release' && github.event.action == 'published'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out.lua
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
