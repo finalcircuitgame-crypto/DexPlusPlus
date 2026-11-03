@@ -35,7 +35,8 @@ end
 local function main()
 	local SettingsWindow = {}
 	local window, ListFrame
-	local fileName = "Place_"..game.PlaceId.."_"..game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name.."_{TIMESTAMP}"
+	-- Keep module startup offline; place metadata is not required to initialize settings.
+	local fileName = "Place_" .. tostring(game.PlaceId) .. "_{TIMESTAMP}"
 	local Saving = false
 	
 	local function AddCheckbox(title, default)
