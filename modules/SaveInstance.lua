@@ -35,7 +35,14 @@ end
 local function main()
 	local SaveInstance = {}
 	local window, ListFrame
-	local fileName = "Place_"..game.PlaceId.."_"..game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name.."_{TIMESTAMP}"
+	local placeName = "Place_" .. tostring(game.PlaceId)
+	pcall(function()
+		local info = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+		if info and type(info.Name) == "string" and info.Name ~= "" then
+			placeName ..= "_" .. info.Name
+		end
+	end)
+	local fileName = placeName .. "_{TIMESTAMP}"
 	local Saving = false
 	
 	local SaveInstanceArgs = {
@@ -45,7 +52,6 @@ local function main()
 		NilInstances = false,
 		RemovePlayerCharacters = true,
 		SavePlayers = false,
-		MaxThreads = 3,
 		ShowStatus = true,
 		IgnoreDefaultProps = true,
 		IsolateStarterPlayer = true
@@ -143,7 +149,7 @@ local function main()
 		ListFrame.Parent = window.GuiElems.Content
 		ListFrame.Size = UDim2.new(1, 0,1, -40)
 		ListFrame.Position = UDim2.new(0, 0, 0, 0)
-		ListFrame.Transparency = 1
+		ListFrame.BackgroundTransparency = 1
 		ListFrame.CanvasSize = UDim2.new(0,0,0,0)
 		ListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		ListFrame.ScrollBarThickness = 16
@@ -188,27 +194,32 @@ local function main()
 		
 		local decompileTimeout = AddTextbox("Decompile Timeout (s)", SaveInstanceArgs.DecompileTimeout, 15)
 		decompileTimeout.TextBox.FocusLost:Connect(function()
-			SaveInstanceArgs.DecompileTimeout = tonumber(decompileTimeout.TextBox.Text)
+			local value = tonumber(decompileTimeout.TextBox.Text)
+			if value and value == value and value ~= math.huge and value >= -1 and value <= 300 then
+				SaveInstanceArgs.DecompileTimeout = value
+			else
+				decompileTimeout.TextBox.Text = tostring(SaveInstanceArgs.DecompileTimeout)
+				warn("Decompile Timeout must be -1 or a number between 0 and 300.")
+			end
 		end)
 		
-		local decompileThread = AddTextbox("Decompiler Max Threads", "3", 15)
-		decompileThread.TextBox.FocusLost:Connect(function()
-			SaveInstanceArgs.MaxThreads = tonumber(decompileThread.TextBox.Text)
-		end)
+		-- The current USSI API does not expose a MaxThreads option.
 		
 		local decompileIgnore = AddTextbox("Decompile Ignore", table.concat(SaveInstanceArgs.DecompileIgnore, ","), 50)
 		decompileIgnore.TextBox.FocusLost:Connect(function()
-			local inputText = decompileIgnore.TextBox.Text
-			local rawList = string.split(inputText, ", ") or string.split(inputText, ",")
 			local finalList = {}
+			local seen = {}
 
-			for _, text in ipairs(rawList) do
-				local split = string.split(text, ",") or string.split(text, ", ")
-				for _, textFound in ipairs(split) do
-					table.insert(finalList, textFound)
+			for name in decompileIgnore.TextBox.Text:gmatch("[^,]+") do
+				name = name:match("^%s*(.-)%s*$")
+				if name ~= "" and not seen[name] then
+					seen[name] = true
+					table.insert(finalList, name)
 				end
 			end
+
 			SaveInstanceArgs.DecompileIgnore = finalList
+			decompileIgnore.TextBox.Text = table.concat(finalList, ", ")
 		end)
 
 		
@@ -270,22 +281,50 @@ local function main()
 		Button.Parent = BackgroundButton.Gui
 		Button.Size = UDim2.new(1,0, 1,0)
 		Button.Position = UDim2.new(0,0, 0,0)
-		Button.Transparency = 1
+		Button.BackgroundTransparency = 1
 		
 		FilenameTextBox.TextBox.Text = fileName
 		Button.MouseButton1Click:Connect(function()
-			local fileName = FilenameTextBox.TextBox.Text:gsub("{TIMESTAMP}", os.date("%d-%m-%Y_%H-%M-%S"))
+			if Saving then
+				return
+			end
+
+			Saving = true
+			Button.Active = false
+			Button.AutoButtonColor = false
+			LabelButton.Gui.Text = "Saving..."
 			window:SetTitle("Save Instance - Saving")
-			local s, result = pcall(env.saveinstance, game, fileName, SaveInstanceArgs)
-			if s then
+
+			local outputName = FilenameTextBox.TextBox.Text
+			if outputName == "" then
+				outputName = fileName
+			end
+			outputName = outputName:gsub("{TIMESTAMP}", os.date("%d-%m-%Y_%H-%M-%S"))
+
+			local options = table.clone(SaveInstanceArgs)
+			local success, result = pcall(env.saveinstance, game, outputName, options)
+			if success then
 				window:SetTitle("Save Instance - Saved")
+				LabelButton.Gui.Text = "Saved"
 			else
 				window:SetTitle("Save Instance - Error")
-				task.spawn(error("Failed to save the game: "..result))
+				LabelButton.Gui.Text = "Save failed (see console)"
+				warn("Failed to save the game: " .. tostring(result))
 			end
-			task.wait(5)
-			window:SetTitle("Save Instance")
-			---env.saveinstance(game, fileName, SaveInstanceArgs)
+
+			task.delay(4, function()
+				Saving = false
+				if window then
+					window:SetTitle("Save Instance")
+				end
+				if Button.Parent then
+					Button.Active = true
+					Button.AutoButtonColor = true
+				end
+				if LabelButton.Gui.Parent then
+					LabelButton.Gui.Text = "Save"
+				end
+			end)
 		end)
 	end
 
