@@ -477,25 +477,44 @@ Main = (function()
 		env.makefolder = makefolder
 		env.listfiles = listfiles
 		env.loadfile = loadfile
-		env.saveinstance = saveinstance or (function()
-			--warn("No built-in saveinstance exists, using SynSaveInstance and wrapper...")
-			if game:GetService("RunService"):IsStudio() then return function() error("Cannot run in Roblox Studio!") end end
-			local Params = {
-				RepoURL = "https://raw.githubusercontent.com/luau/SynSaveInstance/main/",
-				SSI = "saveinstance",
-			}
-			local synsaveinstance = loadstring(oldgame:HttpGet(Params.RepoURL .. Params.SSI .. ".luau", true), Params.SSI)()
-		
-			local function wrappedsaveinstance(obj, filepath, options)
-				options["FilePath"] = filepath
-				--options["ReadMe"] = false
-				options["Object"] = obj
-				return synsaveinstance(options)
+		local function createSaveInstanceAdapter(saveFunction)
+			return function(obj, filepath, options)
+				if typeof(obj) ~= "Instance" then
+					error("SaveInstance expected an Instance as its first argument", 2)
+				end
+				if type(options) ~= "table" then
+					options = {}
+				end
+				
+				-- USSI and UNC-style saveinstance APIs accept one options table.
+				-- Dex++'s UI uses the legacy (object, filename, options) signature.
+				local saveOptions = table.clone(options)
+				saveOptions.FilePath = filepath
+				saveOptions.Object = obj
+				return saveFunction(saveOptions)
 			end
-			
-			getgenv().saveinstance = wrappedsaveinstance
-			return wrappedsaveinstance
-		end)()
+		end
+		
+		if type(saveinstance) == "function" then
+			-- Normalize executor-provided saveinstance implementations too.
+			env.saveinstance = createSaveInstanceAdapter(saveinstance)
+		else
+			if game:GetService("RunService"):IsStudio() then
+				env.saveinstance = function()
+					error("No executor saveinstance is available in Roblox Studio.", 2)
+				end
+			else
+				local Params = {
+					RepoURL = "https://raw.githubusercontent.com/luau/UniversalSynSaveInstance/main/",
+					SSI = "saveinstance",
+				}
+				local synsaveinstance = loadstring(
+					oldgame:HttpGet(Params.RepoURL .. Params.SSI .. ".luau", true),
+					Params.SSI
+				)()
+				env.saveinstance = createSaveInstanceAdapter(synsaveinstance)
+			end
+		end
 		
 		env.parsefile = function(name)
 			return tostring(name):gsub("[*\\?:<>|]+", ""):sub(1, 175)
