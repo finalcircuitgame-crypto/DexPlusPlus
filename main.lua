@@ -199,14 +199,14 @@ Main = (function()
 	Main.Elevated = false
 	Main.AllowDraggableOnMobile = true
 	Main.MissingEnv = {}
-	Main.Version = "3.0"
+	Main.Version = "1.0.1"
 	Main.Mouse = plr:GetMouse()
 	Main.AppControls = {}
 	Main.Apps = Apps
 	Main.MenuApps = {}
 	Main.GitName = "AZYsGithub"
 	Main.RepoName = "DexPlusPlus"
-	Main.GitRepoName = Main.GitName.."/"..Main.RepoName
+	Main.GitRepoName = "finalcircuitgame-crypto/DexPlusPlus"
 
 	Main.DisplayOrders = {
 		SideWindow = 8,
@@ -390,7 +390,7 @@ Main = (function()
 					control = loadstring(moduleStr)()
 				else
 					-- Download and cache
-					local s,moduleStr = pcall(oldgame.HttpGet, game, "https://api.github.com/repos/"..Main.GitRepoName.."/Modules/"..name..".lua")
+					local s,moduleStr = pcall(oldgame.HttpGet, game, "https://api.github.com/repos/"..Main.GitRepoName.."/modules/"..name..".lua")
 					if not s then Main.Error("Failed to get external module data of "..name) end
 
 					env.writefile(filePath,moduleStr)
@@ -1214,7 +1214,7 @@ Main = (function()
 			{8,"Frame",{BackgroundColor3=Color3.new(0.20392157137394,0.20392157137394,0.20392157137394),BorderSizePixel=0,Name="ProgressBar",Parent={3},Position=UDim2.new(0,110,0,145),Size=UDim2.new(0,0,0,4),}},
 			{9,"Frame",{BackgroundColor3=Color3.new(0.2392156869173,0.56078433990479,0.86274510622025),BorderSizePixel=0,Name="Bar",Parent={8},Size=UDim2.new(0,0,1,0),}},
 			{10,"ImageLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Image="rbxassetid://2764171053",ImageColor3=Color3.new(0.17647059261799,0.17647059261799,0.17647059261799),Parent={8},ScaleType=1,Size=UDim2.new(1,0,1,0),SliceCenter=Rect.new(2,2,254,254),}},
-			{11,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=3,Name="Creator",Parent={2},Position=UDim2.new(1,-110,1,-20),Size=UDim2.new(0,105,0,20),Text="Developed by Chillz.",TextColor3=Color3.new(1,1,1),TextSize=14,TextXAlignment=1,}},
+			{11,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=3,Name="Creator",Parent={2},Position=UDim2.new(1,-110,1,-20),Size=UDim2.new(0,105,0,20),Text="Developed by MasterDevelopments.",TextColor3=Color3.new(1,1,1),TextSize=14,TextXAlignment=1,}},
 			{12,"UIGradient",{Parent={11},Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1,0),NumberSequenceKeypoint.new(1,1,0),}),}},
 			{13,"TextLabel",{BackgroundColor3=Color3.new(1,1,1),BackgroundTransparency=1,Font=3,Name="Version",Parent={2},Position=UDim2.new(1,-110,1,-35),Size=UDim2.new(0,105,0,20),Text=Main.Version,TextColor3=Color3.new(1,1,1),TextSize=14,TextXAlignment=1,}},
 			{14,"UIGradient",{Parent={13},Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1,0),NumberSequenceKeypoint.new(1,1,0),}),}},
@@ -1732,16 +1732,45 @@ Main = (function()
 		end)
 		Lib.FastWait()
 
-		-- Init other modules
-		intro.SetProgress("Initializing Modules",0.8)
-		Explorer.Init()
-		Properties.Init()
-		ScriptViewer.Init()
-		Console.Init()
-		SaveInstance.Init()
-		ModelViewer.Init()
-		SettingsWindow.Init()
-		--SecretServicePanel.Init()
+		-- Initialize app modules with per-module progress and timing.
+		local initSteps = {
+			{"Explorer", function()
+				Explorer.Init(function(indexedCount, done)
+					intro.SetProgress(
+						("Indexing game instances: %d%s"):format(indexedCount, done and " indexed" or "..."),
+						0.812
+					)
+				end)
+			end},
+			{"Properties", function() Properties.Init() end},
+			{"ScriptViewer", function() ScriptViewer.Init() end},
+			{"Console", function() Console.Init() end},
+			{"SaveInstance", function() SaveInstance.Init() end},
+			{"ModelViewer", function() ModelViewer.Init() end},
+			{"SettingsWindow", function() SettingsWindow.Init() end},
+		}
+
+		for index, step in ipairs(initSteps) do
+			local name, initializer = step[1], step[2]
+			local progress = 0.8 + ((index - 1) / #initSteps) * 0.1
+			intro.SetProgress(
+				("Initializing %s (%d/%d)"):format(name, index, #initSteps),
+				progress
+			)
+
+			local startedAt = os.clock()
+			local ok, err = pcall(initializer)
+			local elapsed = os.clock() - startedAt
+
+			if not ok then
+				Main.Error(("Failed to initialize %s: %s"):format(name, tostring(err)))
+			end
+			if elapsed >= 2 then
+				warn(("[Dex++] Initializing %s took %.2fs"):format(name, elapsed))
+			end
+
+			task.wait()
+		end
 		
 		
 		if env.readfile and listfiles then
