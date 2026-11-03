@@ -951,6 +951,7 @@ local function main()
 			context = Lib.ContextMenu.new()
 			context.Iconless = true
 			context.Width = 80
+			Properties.AttributeContext = context
 		end
 		context:Clear()
 
@@ -1069,7 +1070,7 @@ local function main()
 			context.Iconless = true
 			context.MaxHeight = 200
 			context.ReverseYOffset = 22
-			Properties.EnumDropdown = context
+			Properties.EnumContext = context
 		end
 
 		if not inputProp or inputProp.ValueType.Category ~= "Enum" then return end
