@@ -166,47 +166,65 @@ local function main()
 		local typeData = prop.ValueType
 		local typeName = typeData.Name
 
+		local function parseNumbers(input)
+			local values = string.split(input, ",")
+			for i = 1, #values do
+				local value = tonumber(values[i])
+				if not value or value ~= value or value == math.huge or value == -math.huge then
+					return nil
+				end
+				values[i] = value
+			end
+			return values
+		end
+
 		if typeName == "string" or typeName == "Content" then
 			return str
 		elseif Properties.ToNumberTypes[typeName] then
 			return tonumber(str)
 		elseif typeName == "Vector2" then
-			local vals = str:split(",")
-			local x,y = tonumber(vals[1]),tonumber(vals[2])
-			if x and y and #vals >= 2 then return Vector2.new(x,y) end
+			local vals = parseNumbers(str)
+			if vals and #vals == 2 then return Vector2.new(vals[1], vals[2]) end
 		elseif typeName == "Vector3" then
-			local vals = str:split(",")
-			local x,y,z = tonumber(vals[1]),tonumber(vals[2]),tonumber(vals[3])
-			if x and y and z and #vals >= 3 then return Vector3.new(x,y,z) end
+			local vals = parseNumbers(str)
+			if vals and #vals == 3 then return Vector3.new(vals[1], vals[2], vals[3]) end
 		elseif typeName == "UDim" then
-			local vals = str:split(",")
-			local scale,offset = tonumber(vals[1]),tonumber(vals[2])
-			if scale and offset and #vals >= 2 then return UDim.new(scale,offset) end
+			local vals = parseNumbers(str)
+			if vals and #vals == 2 then return UDim.new(vals[1], vals[2]) end
 		elseif typeName == "UDim2" then
-			local vals = str:gsub("[{}]",""):split(",")
-			local xScale,xOffset,yScale,yOffset = tonumber(vals[1]),tonumber(vals[2]),tonumber(vals[3]),tonumber(vals[4])
-			if xScale and xOffset and yScale and yOffset and #vals >= 4 then return UDim2.new(xScale,xOffset,yScale,yOffset) end
+			local vals = parseNumbers(str:gsub("[{}]", ""))
+			if vals and #vals == 4 then return UDim2.new(vals[1], vals[2], vals[3], vals[4]) end
 		elseif typeName == "CFrame" then
-			local vals = str:split(",")
-			local s,result = pcall(CFrame.new,unpack(vals))
-			if s and #vals >= 12 then return result end
+			local vals = parseNumbers(str)
+			if vals and #vals == 12 then
+				local success, result = pcall(CFrame.new, unpack(vals))
+				if success then return result end
+			end
 		elseif typeName == "Rect" then
-			local vals = str:split(",")
-			local s,result = pcall(Rect.new,unpack(vals))
-			if s and #vals >= 4 then return result end
+			local vals = parseNumbers(str)
+			if vals and #vals == 4 then
+				local success, result = pcall(Rect.new, unpack(vals))
+				if success then return result end
+			end
 		elseif typeName == "Ray" then
-			local vals = str:gsub("[{}]",""):split(",")
-			local s,origin = pcall(Vector3.new,unpack(vals,1,3))
-			local s2,direction = pcall(Vector3.new,unpack(vals,4,6))
-			if s and s2 and #vals >= 6 then return Ray.new(origin,direction) end
+			local vals = parseNumbers(str:gsub("[{}]", ""))
+			if vals and #vals == 6 then
+				local origin = Vector3.new(vals[1], vals[2], vals[3])
+				local direction = Vector3.new(vals[4], vals[5], vals[6])
+				return Ray.new(origin, direction)
+			end
 		elseif typeName == "NumberRange" then
-			local vals = str:split(",")
-			local s,result = pcall(NumberRange.new,unpack(vals))
-			if s and #vals >= 1 then return result end
+			local vals = parseNumbers(str)
+			if vals and (#vals == 1 or #vals == 2) then
+				local success, result = pcall(NumberRange.new, unpack(vals))
+				if success then return result end
+			end
 		elseif typeName == "Color3" then
-			local vals = str:gsub("[{}]",""):split(",")
-			local s,result = pcall(Color3.fromRGB,unpack(vals))
-			if s and #vals >= 3 then return result end
+			local vals = parseNumbers(str:gsub("[{}]", ""))
+			if vals and #vals == 3 then
+				local success, result = pcall(Color3.fromRGB, unpack(vals))
+				if success then return result end
+			end
 		end
 
 		return nil
@@ -1620,7 +1638,7 @@ local function main()
 							local pos = (subName == ".Position" and setVal) or Vector3.new((subName == ".Position.X" and setVal) or rootPos.X, (subName == ".Position.Y" and setVal) or rootPos.Y, (subName == ".Position.Z" and setVal) or rootPos.Z)
 							local rightV = (subName == ".RightVector" and setVal) or Vector3.new((subName == ".RightVector.X" and setVal) or rootRight.X, (subName == ".RightVector.Y" and setVal) or rootRight.Y, (subName == ".RightVector.Z" and setVal) or rootRight.Z)
 							local upV = (subName == ".UpVector" and setVal) or Vector3.new((subName == ".UpVector.X" and setVal) or rootUp.X, (subName == ".UpVector.Y" and setVal) or rootUp.Y, (subName == ".UpVector.Z" and setVal) or rootUp.Z)
-							local lookV = (subName == ".LookVector" and setVal) or Vector3.new((subName == ".LookVector.X" and setVal) or rootLook.X, (subName == ".RightVector.Y" and setVal) or rootLook.Y, (subName == ".RightVector.Z" and setVal) or rootLook.Z)
+							local lookV = (subName == ".LookVector" and setVal) or Vector3.new((subName == ".LookVector.X" and setVal) or rootLook.X, (subName == ".LookVector.Y" and setVal) or rootLook.Y, (subName == ".LookVector.Z" and setVal) or rootLook.Z)
 							setVal = CFrame.fromMatrix(pos,rightV,upV,-lookV)
 						elseif rootTypeName == "Rect" then
 							local rootMin,rootMax = root.Min,root.Max
