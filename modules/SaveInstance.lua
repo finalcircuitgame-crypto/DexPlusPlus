@@ -195,7 +195,7 @@ local function main()
 		local decompileTimeout = AddTextbox("Decompile Timeout (s)", SaveInstanceArgs.DecompileTimeout, 15)
 		decompileTimeout.TextBox.FocusLost:Connect(function()
 			local value = tonumber(decompileTimeout.TextBox.Text)
-			if value and value == value and value ~= math.huge and value >= -1 and value <= 300 then
+			if value and value == value and value ~= math.huge and (value == -1 or (value >= 0 and value <= 300)) then
 				SaveInstanceArgs.DecompileTimeout = value
 			else
 				decompileTimeout.TextBox.Text = tostring(SaveInstanceArgs.DecompileTimeout)
