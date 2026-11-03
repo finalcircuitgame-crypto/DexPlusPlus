@@ -25,10 +25,17 @@ Here are the features that were added/fixed in Dex++
 - CodeFrame cursor offset (where cursor on textbox were not aligned properly)
 
 ## To Build
-1. Download this repository
-2. Ensure you have Python 3 (I use 3.9.0)
-3. Run build.py
-4. The executable script will be created as out.lua
+
+1. Download this repository.
+2. Ensure you have Python 3.9 or newer.
+3. Run `python build.py` from the repository root. This generates `out.lua`.
+4. Run `python build.py --check` to verify that the generated bundle matches the source files.
+
+The builder sorts module files for reproducible output and verifies that every module listed in `Main.ModuleList` is embedded. `out.lua` is generated and intentionally ignored by Git; edit the source files instead.
+
+### Release automation
+
+GitHub Actions builds and verifies `out.lua` on pushes and pull requests. When a GitHub Release is published, the workflow builds `out.lua` and attaches it to that release automatically. The latest-version loader link above therefore receives the generated bundle after the release workflow completes.
 
 ## About Dex Roadmap
 The concept of the Dex roadmap is amazing, however neither me nor Moon have the ability to fulfil the full roadmap. I did have added few stuffs in my fork but mostly of them are beyond my limit and i did this project for fun.
