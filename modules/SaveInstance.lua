@@ -35,14 +35,9 @@ end
 local function main()
 	local SaveInstance = {}
 	local window, ListFrame
-	local placeName = "Place_" .. tostring(game.PlaceId)
-	pcall(function()
-		local info = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
-		if info and type(info.Name) == "string" and info.Name ~= "" then
-			placeName ..= "_" .. info.Name
-		end
-	end)
-	local fileName = placeName .. "_{TIMESTAMP}"
+	-- Avoid a network request during module startup. The place ID is a
+	-- stable filename fallback and can be renamed in the Save Instance UI.
+	local fileName = "Place_" .. tostring(game.PlaceId) .. "_{TIMESTAMP}"
 	local Saving = false
 	
 	local SaveInstanceArgs = {
