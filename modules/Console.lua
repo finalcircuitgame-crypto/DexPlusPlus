@@ -692,6 +692,12 @@ local function main()
 		end)
 		OutputTextSize:GetPropertyChangedSignal("Value"):Connect(function()
 			Console.TextSizeBox.TextBox.Text = tostring(OutputTextSize.Value)
+
+			for _, output in ipairs(displayedOutput) do
+				if output.Parent then
+					output.TextSize = OutputTextSize.Value
+				end
+			end
 		end)
 
 		local scrollConsoleInput
@@ -716,19 +722,30 @@ local function main()
 		end)
 
 
+		local focussedOutput
+
 		Console.Clear.MouseButton1Click:Connect(function()
-			for _, log in pairs(Console.Output:GetChildren()) do
+			if focussedOutput then
+				local focused = focussedOutput
+				focussedOutput = nil
+				focused:ReleaseFocus()
+			end
+
+			for _, log in ipairs(Console.Output:GetChildren()) do
 				if log:IsA("TextBox") then
 					log:Destroy()
 				end
 			end
-		end)
 
-		local focussedOutput
+			table.clear(displayedOutput)
+		end)
 
 		LogService.MessageOut:Connect(function(msg, msgtype)
 			local formattedText = ""
 			local unformattedText = ""
+			local rawMessage = tostring(msg)
+			local escapedMessage = rawMessage:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+			local timestamp = os.date("%H:%M:%S")
 			local newOutputText = Console.OutputTemplate:Clone()
 			table.insert(displayedOutput, newOutputText)
 
@@ -739,25 +756,21 @@ local function main()
 				end
 			end
 
-			unformattedText = os.date("%H:%M:%S")..'   '..msg
+			unformattedText = timestamp..'   '..rawMessage
 			if msgtype == Enum.MessageType.MessageOutput then
-				formattedText = os.date("%H:%M:%S")..'   <font color="rgb(204, 204, 204)">'..msg..'</font>'
-				newOutputText.Text = formattedText
+				formattedText = timestamp..'   <font color="rgb(204, 204, 204)">'..escapedMessage..'</font>'
 			elseif msgtype == Enum.MessageType.MessageWarning then
-				formattedText = os.date("%H:%M:%S")..'   <b><font color="rgb(255, 142, 60)">'..msg..'</font></b>'
-				newOutputText.Text = formattedText
+				formattedText = timestamp..'   <b><font color="rgb(255, 142, 60)">'..escapedMessage..'</font></b>'
 			elseif msgtype == Enum.MessageType.MessageError then
-				formattedText = os.date("%H:%M:%S")..'   <b><font color="rgb(255, 68, 68)">'..msg..'</font></b>'
-				newOutputText.Text = formattedText
+				formattedText = timestamp..'   <b><font color="rgb(255, 68, 68)">'..escapedMessage..'</font></b>'
 			elseif msgtype == Enum.MessageType.MessageInfo then
-				formattedText = os.date("%H:%M:%S")..'   <font color="rgb(128, 215, 255)">'..msg..'</font>'
-				newOutputText.Text = formattedText
+				formattedText = timestamp..'   <font color="rgb(128, 215, 255)">'..escapedMessage..'</font>'
+			else
+				formattedText = timestamp..'   '..escapedMessage
 			end
 
+			newOutputText.Text = formattedText
 			newOutputText.TextSize = OutputTextSize.Value
-			OutputTextSize:GetPropertyChangedSignal("Value"):Connect(function()
-				newOutputText.TextSize = OutputTextSize.Value
-			end)
 
 			newOutputText.Focused:Connect(function()
 				focussedOutput = newOutputText
