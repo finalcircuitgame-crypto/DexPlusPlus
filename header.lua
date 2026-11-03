@@ -1,8 +1,8 @@
 --[[
 	Dex++
-	Version 3.0
+	Version 1.0.1
 	
-	Developed by Chillz
+	Developed by MasterDevelopments
 	
 	Dex++ is a revival of Moon's Dex, made to fulfill Moon's Dex prophecy.
 ]]
