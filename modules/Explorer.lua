@@ -1363,24 +1363,31 @@ local function main()
 
 		context:Register("SAVE_INST",{Name = "Save to File", IconMap = Explorer.MiscIcons, Icon = "Save", OnClick = function()
 			local sList = selection.List
-			if #sList == 1 then
-				Lib.SaveAsPrompt("Place_"..game.PlaceId.."_"..sList[1].Obj.ClassName.."_"..sList[1].Obj.Name.."_"..os.time(), function(filename)
-					env.saveinstance(sList[1].Obj, filename, {
+			local function promptSave(obj)
+				local safeName = env.parsefile(obj.Name)
+				local defaultName = ("Place_%s_%s_%s_%s"):format(
+					tostring(game.PlaceId),
+					env.parsefile(obj.ClassName),
+					safeName,
+					tostring(os.time())
+				)
+
+				Lib.SaveAsPrompt(defaultName, function(filename)
+					env.saveinstance(obj, filename, {
 						Decompile = true,
 						RemovePlayerCharacters = false
 					})
 				end)
+			end
+
+			if #sList == 1 then
+				local obj = sList[1].Obj
+				promptSave(obj)
 			elseif #sList > 1 then
-				for i = 1,#sList do
-					-- sList[i].Obj.Name.." ("..sList[1].Obj.ClassName..")"
-					-- "Place_"..game.PlaceId.."_"..sList[1].Obj.ClassName.."_"..sList[i].Obj.Name.."_"..os.time()
-					Lib.SaveAsPrompt("Place_"..game.PlaceId.."_"..sList[i].Obj.ClassName.."_"..sList[i].Obj.Name.."_"..os.time(), function(filename)
-						env.saveinstance(sList[i].Obj, filename, {
-							Decompile = true,
-							RemovePlayerCharacters = false
-						})
-					end)
-					
+				for i = 1, #sList do
+					-- Capture the selected object before creating the callback.
+					local obj = sList[i].Obj
+					promptSave(obj)
 					task.wait(0.1)
 				end
 			end
