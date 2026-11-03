@@ -1,4 +1,6 @@
-# Dex++
+# Dex++ v1.0.1
+
+**Developed by MasterDevelopments.**
 ![Preview](./preview.png)
 
 Dex++ is an extended version of Moon's Dex, made to fulfill some Moon's Dex prophecy.
@@ -8,6 +10,13 @@ Dex++ is an extended version of Moon's Dex, made to fulfill some Moon's Dex prop
 loadstring(game:HttpGet("https://github.com/finalcircuitgame-crypto/DexPlusPlus/releases/latest/download/out.lua"))()
 ```
 For specific versions, go to [releases](https://github.com/finalcircuitgame-crypto/DexPlusPlus/releases).
+
+## v1.0.1
+
+- Replaced the startup Explorer's one-shot full-game descendant scan with a batched tree walk that yields every 200 indexed instances.
+- Reused the incremental indexing path when large subtrees are added after startup.
+- Added per-module initialization status and elapsed-time warnings to make startup stalls easier to pinpoint.
+- Updated the runtime version and developer credit.
 
 ## What's the difference between Dex and Dex++?
 Since the original Dex is the last release and Moon have discontinued it, it still has some missing features.
@@ -61,7 +70,8 @@ Every donation is highly apreciated, this is compeletely optional.
 [![USSI License](https://img.shields.io/badge/USSI-License-green)](https://github.com/luau/UniversalSynSaveInstance/blob/main/LICENSE)
 
 ## Credits
-- [Chillz](https://github.com/AZYsGithub) – Dex++ Maintainer  
+- [MasterDevelopments](https://github.com/finalcircuitgame-crypto) – Developer and maintainer of this Dex++ fork  
+- [Chillz](https://github.com/AZYsGithub) – Original Dex++ maintainer and upstream project credit  
 - [Cazan](https://github.com/Cazzanos) – Helped me develop the Model Viewer  
 - [Moon](https://github.com/LorekeeperZinnia/Dex) – Original Dex Explorer  
 - [Toon](https://github.com/Toon-arch) – Contributor and IY's Dex parts and components
